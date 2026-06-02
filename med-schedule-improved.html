@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Med Study Schedule</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080a0f;
+  --surface: #0f1118;
+  --surface2: #161921;
+  --surface3: #1c2030;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.11);
+  --text: #edecea;
+  --text2: #a8aab8;
+  --muted: #555868;
+  --accent: #b8f060;
+  --accent-dim: rgba(184,240,96,0.08);
+  --accent-border: rgba(184,240,96,0.22);
+  --accent2: #5dd8f5;
+  --anatomy: #a78bfa;
+  --physio: #34d399;
+  --pharma: #fbbf24;
+  --clinical: #f87171;
+  --pathology: #fb923c;
+  --psychiatry: #e879f9;
+  --histology: #38bdf8;
+  --r: 10px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Instrument Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Ambient blobs ── */
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+.blob-1 { width: 500px; height: 500px; top: -150px; left: -150px; background: radial-gradient(circle, rgba(184,240,96,0.07), transparent 70%); }
+.blob-2 { width: 400px; height: 400px; bottom: -100px; right: -100px; background: radial-gradient(circle, rgba(93,216,245,0.06), transparent 70%); }
+.blob-3 { width: 300px; height: 300px; top: 40%; left: 55%; background: radial-gradient(circle, rgba(167,139,250,0.04), transparent 70%); }
+
+/* ── Layout ── */
+.app-shell {
+  position: relative; z-index: 1;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ── Header ── */
+header {
+  padding: 2.5rem 0 2rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo-area h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+.logo-area h1 em { color: var(--accent); font-style: normal; }
+.logo-area .subtitle {
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.stats-bar {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.stat-item {
+  padding: 0.65rem 1.2rem;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  min-width: 72px;
+}
+.stat-item:last-child { border-right: none; }
+.stat-item .num {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.stat-item .lbl {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
+}
+
+/* ── Progress bar ── */
+.progress-wrap {
+  padding: 1.5rem 0 0;
+}
+.prog-track {
+  position: relative;
+  height: 4px;
+  background: var(--surface2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.55rem;
+}
+.prog-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.prog-fill::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent);
+}
+.prog-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── Controls row: filters ── */
+.controls {
+  padding: 1.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* ── Countdown ── */
+.countdown-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  margin: 1.5rem 0 0;
+  position: relative;
+  overflow: hidden;
+}
+.countdown-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(184,240,96,0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+.countdown-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.countdown-label span {
+  display: block;
+  color: var(--accent);
+  font-size: 0.6rem;
+  margin-top: 2px;
+  letter-spacing: 0.08em;
+}
+.countdown-divider { width: 1px; height: 32px; background: var(--border2); flex-shrink: 0; }
+.countdown-units {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+  align-items: center;
+}
+.cd-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 48px;
+}
+.cd-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: -0.03em;
+  transition: color 0.3s;
+}
+.cd-num.urgent { color: var(--clinical); }
+.cd-lbl {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.cd-sep {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--border2);
+  line-height: 1;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.countdown-bar .btn-reset {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-family: 'DM Mono', monospace;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.countdown-bar .btn-reset:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.cd-expired {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--clinical);
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 640px) {
+  .countdown-bar { flex-wrap: wrap; gap: 0.75rem; }
+  .cd-num { font-size: 1.3rem; }
+  .cd-unit { min-width: 38px; }
+}
+
+.filter-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-lbl {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: 'DM Mono', monospace;
+  margin-right: 2px;
+}
+.pill {
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Instrument Sans', sans-serif;
+}
+.pill:hover { border-color: var(--border2); color: var(--text); }
+.pill.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.pill[data-subject="all"].active { background: var(--accent); color: #080a0f; border-color: var(--accent); font-weight: 600; }
+/* Subject-colored pills when active */
+.pill[data-subject="Anatomy"].active { border-color: var(--anatomy); color: var(--anatomy); background: rgba(167,139,250,0.08); }
+.pill[data-subject="Physiology"].active { border-color: var(--physio); color: var(--physio); background: rgba(52,211,153,0.08); }
+.pill[data-subject="Pharmacology"].active { border-color: var(--pharma); color: var(--pharma); background: rgba(251,191,36,0.08); }
+.pill[data-subject="Clinical"].active { border-color: var(--clinical); color: var(--clinical); background: rgba(248,113,113,0.08); }
+.pill[data-subject="Pathology"].active { border-color: var(--pathology); color: var(--pathology); background: rgba(251,146,60,0.08); }
+.pill[data-subject="Psychiatry"].active { border-color: var(--psychiatry); color: var(--psychiatry); background: rgba(232,121,249,0.08); }
+.pill[data-subject="Histology"].active { border-color: var(--histology); color: var(--histology); background: rgba(56,189,248,0.08); }
+
+/* ── Subject stats strip ── */
+.subject-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 1rem 0 0;
+}
+.subj-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: var(--text2);
+  font-family: 'DM Mono', monospace;
+}
+.subj-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.subj-chip-bar {
+  width: 40px; height: 3px;
+  background: var(--surface3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.subj-chip-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+.subj-chip-frac { color: var(--muted); font-size: 0.65rem; }
+
+/* ── Weeks ── */
+.weeks {
+  padding: 2rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.week-block {}
+
+.week-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+.week-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.week-line { flex: 1; height: 1px; background: var(--border); }
+.week-mini-prog {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.week-mini-track {
+  width: 60px; height: 3px;
+  background: var(--surface2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.week-mini-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.week-count {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+
+/* ── Lecture grid ── */
+.lecture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+  gap: 8px;
+}
+
+.lecture-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.9rem 1rem 0.85rem;
+  cursor: default;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s, box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+/* Top color stripe */
+.lecture-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--subject-color, var(--muted));
+  opacity: 0.6;
+}
+/* Left accent bar */
+.lecture-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--subject-color, var(--muted));
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: 0 0 0 10px;
+}
+.lecture-card:hover {
+  border-color: var(--border2);
+  background: var(--surface2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.lecture-card:hover::after { opacity: 0.6; }
+.lecture-card.done {
+  background: rgba(184,240,96,0.03);
+  border-color: rgba(184,240,96,0.12);
+}
+.lecture-card.done::before { opacity: 1; }
+.lecture-card.done::after { opacity: 0.8; }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.subject-tag {
+  font-size: 0.63rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--subject-color, var(--muted));
+  font-family: 'DM Mono', monospace;
+}
+.card-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.card-title {
+  font-size: 0.87rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.45;
+  margin-bottom: 10px;
+  min-height: 2.6em;
+}
+.card-checks {
+  display: flex;
+  gap: 5px;
+}
+.check-btn {
+  flex: 1;
+  padding: 5px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.check-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.check-btn.checked-study { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.3); color: #34d399; }
+.check-btn.checked-revision { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+.check-btn.checked-mcq { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.3); color: #a78bfa; }
+
+/* ── Practical section ── */
+.practical-section {
+  padding: 2.5rem 0 4rem;
+}
+.section-heading {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent2);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.practical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.practical-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.8rem 0.9rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+}
+.practical-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent2);
+  opacity: 0.4;
+}
+.practical-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--subject-color, var(--accent2));
+  opacity: 0.5;
+}
+.practical-card:hover { border-color: var(--border2); background: var(--surface2); }
+.prac-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.prac-tag { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subject-color, var(--accent2)); font-family: 'DM Mono', monospace; }
+.prac-num { font-size: 0.62rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.prac-title { font-size: 0.84rem; color: var(--text); line-height: 1.4; margin-bottom: 8px; }
+.prac-checks { display: flex; gap: 5px; }
+
+/* ── Legend ── */
+.legend {
+  padding: 0.5rem 0 0;
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-hint { margin-left: auto; font-size: 0.68rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 9999;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-family: 'DM Mono', monospace;
+  transform: translateY(60px) scale(0.96);
+  opacity: 0;
+  transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.show { transform: translateY(0) scale(1); opacity: 1; }
+.toast-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+/* ── Empty state ── */
+.empty-state {
+  grid-column: 1/-1;
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-family: 'DM Mono', monospace;
+  border: 1px dashed var(--border);
+  border-radius: var(--r);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .app-shell { padding: 0 1rem; }
+  header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .header-right { align-items: flex-start; width: 100%; }
+  .stats-bar { width: 100%; }
+  .stat-item { flex: 1; }
+  .lecture-grid, .practical-grid { grid-template-columns: 1fr; }
+  .legend-hint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="app-shell">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-area">
+      <h1>Med <em>Schedule</em></h1>
+      <p class="subtitle">Neuroscience Block &mdash; 10 Weeks</p>
+    </div>
+    <div class="header-right">
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="num" id="total-done">0</div>
+          <div class="lbl">Studied</div>
+        </div>
+        <div class="stat-item">
+          <div class="num" id="total-revised">0</div>
+          <div class="lbl">Revised</div>
+        </div>
+        <div class="stat-item">
+          <div class="num" id="total-mcq">0</div>
+          <div class="lbl">MCQ</div>
+        </div>
+        <div class="stat-item">
+          <div class="num" id="total-cards">59</div>
+          <div class="lbl">Total</div>
+        </div>
+        <div class="stat-item">
+          <div class="num" id="pct">0%</div>
+          <div class="lbl">Done</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Progress bar -->
+  <div class="progress-wrap">
+    <div class="prog-track">
+      <div class="prog-fill" id="main-prog" style="width:0%"></div>
+    </div>
+    <div class="prog-meta">
+      <span>Overall completion</span>
+      <span id="prog-text">0 / 59 studied</span>
+    </div>
+  </div>
+
+  <!-- Countdown -->
+  <div class="countdown-bar" id="countdown-bar">
+    <div>
+      <div class="countdown-label">Exam<span>17 Jun · 11:00 AM</span></div>
+    </div>
+    <div class="countdown-divider"></div>
+    <div class="countdown-units" id="cd-units">
+      <div class="cd-unit"><div class="cd-num" id="cd-days">--</div><div class="cd-lbl">Days</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-unit"><div class="cd-num" id="cd-hrs">--</div><div class="cd-lbl">Hours</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-unit"><div class="cd-num" id="cd-min">--</div><div class="cd-lbl">Min</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-unit"><div class="cd-num" id="cd-sec">--</div><div class="cd-lbl">Sec</div></div>
+    </div>
+    <button class="btn-reset" onclick="resetProgress()">Reset</button>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="filter-row">
+      <span class="filter-lbl">Filter</span>
+      <button class="pill active" data-subject="all" onclick="filterSubject('all',this)">All</button>
+      <button class="pill" data-subject="Anatomy" onclick="filterSubject('Anatomy',this)">Anatomy</button>
+      <button class="pill" data-subject="Physiology" onclick="filterSubject('Physiology',this)">Physiology</button>
+      <button class="pill" data-subject="Pharmacology" onclick="filterSubject('Pharmacology',this)">Pharmacology</button>
+      <button class="pill" data-subject="Clinical" onclick="filterSubject('Clinical',this)">Clinical</button>
+      <button class="pill" data-subject="Pathology" onclick="filterSubject('Pathology',this)">Pathology</button>
+      <button class="pill" data-subject="Psychiatry" onclick="filterSubject('Psychiatry',this)">Psychiatry</button>
+      <button class="pill" data-subject="Histology" onclick="filterSubject('Histology',this)">Histology</button>
+    </div>
+  </div>
+
+  <!-- Subject stats strip -->
+  <div class="subject-strip" id="subject-strip"></div>
+
+  <!-- Legend -->
+  <div class="legend" style="margin-top:1.25rem;">
+    <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div>Study</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Revision</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>MCQ</div>
+    <div class="legend-hint">State saved in browser</div>
+  </div>
+
+  <!-- Weeks -->
+  <div class="weeks" id="weeks-container"></div>
+
+  <!-- Practicals -->
+  <div class="practical-section">
+    <div class="section-heading">Practicals</div>
+    <div class="practical-grid" id="prac-grid"></div>
+  </div>
+
+</div><!-- /app-shell -->
+
+<div class="toast" id="toast"><span class="toast-dot"></span><span id="toast-msg"></span></div>
+
+<script>
+const subjectColors = {
+  Anatomy: 'var(--anatomy)',
+  Physiology: 'var(--physio)',
+  Pharmacology: 'var(--pharma)',
+  Clinical: 'var(--clinical)',
+  Pathology: 'var(--pathology)',
+  Psychiatry: 'var(--psychiatry)',
+  Histology: 'var(--histology)',
+};
+const subjectHex = {
+  Anatomy: '#a78bfa',
+  Physiology: '#34d399',
+  Pharmacology: '#fbbf24',
+  Clinical: '#f87171',
+  Pathology: '#fb923c',
+  Psychiatry: '#e879f9',
+  Histology: '#38bdf8',
+};
+
+const lectures = [
+  {id:1,week:1,subject:'Anatomy',title:'Development of neural tube & spinal cord'},
+  {id:2,week:1,subject:'Anatomy',title:'Development of vertebral column'},
+  {id:3,week:1,subject:'Anatomy',title:'Intro to neuroanatomy'},
+  {id:4,week:1,subject:'Pharmacology',title:'Mood stabilizing'},
+  {id:5,week:1,subject:'Physiology',title:'Excitable membranes'},
+  {id:6,week:1,subject:'Physiology',title:'Sensory receptors & coding'},
+  {id:7,week:1,subject:'Clinical',title:'Spina bifida'},
+  {id:8,week:2,subject:'Anatomy',title:'Spinal cord & ascending tracts'},
+  {id:9,week:2,subject:'Anatomy',title:'Vertebral canal & meninges'},
+  {id:10,week:2,subject:'Physiology',title:'Physiology of pain'},
+  {id:11,week:2,subject:'Pharmacology',title:'Opioid drugs'},
+  {id:12,week:2,subject:'Physiology',title:'Pain control system'},
+  {id:13,week:2,subject:'Pharmacology',title:'Analgesics'},
+  {id:14,week:2,subject:'Clinical',title:'Low back pain'},
+  {id:15,week:3,subject:'Anatomy',title:'Bony orbit & extra ocular muscles'},
+  {id:16,week:3,subject:'Physiology',title:'Refractive apparatus'},
+  {id:17,week:3,subject:'Anatomy',title:'Vessels & nerves of orbit'},
+  {id:18,week:3,subject:'Physiology',title:'Photo transduction'},
+  {id:19,week:3,subject:'Anatomy',title:'Brainstem & 4th ventricle'},
+  {id:20,week:3,subject:'Clinical',title:'Disorders of visual development'},
+  {id:21,week:4,subject:'Anatomy',title:'Anatomy of the ear'},
+  {id:22,week:4,subject:'Anatomy',title:'Naso & nasopharynx'},
+  {id:23,week:4,subject:'Pathology',title:'Tonsillitis & otitis media'},
+  {id:24,week:4,subject:'Psychiatry',title:'Attention and information'},
+  {id:25,week:4,subject:'Physiology',title:'Vestibular system'},
+  {id:26,week:4,subject:'Physiology',title:'Mechanism of hearing'},
+  {id:27,week:5,subject:'Anatomy',title:'Descending motor pathways'},
+  {id:28,week:5,subject:'Psychiatry',title:'Neurocognitive function of brain'},
+  {id:29,week:5,subject:'Anatomy',title:'Blood supply of brain'},
+  {id:30,week:5,subject:'Physiology',title:'Alpha & gamma motorneurons'},
+  {id:31,week:5,subject:'Pathology',title:'Cerebro-vascular strokes'},
+  {id:32,week:5,subject:'Physiology',title:'Pyramidal & extrapyramidal system'},
+  {id:33,week:6,subject:'Anatomy',title:'Anatomy of cerebellum'},
+  {id:34,week:6,subject:'Physiology',title:'Physiology of cerebellum'},
+  {id:35,week:6,subject:'Histology',title:'Cells and myelination of NS'},
+  {id:36,week:6,subject:'Pathology',title:'Demyelinating cell'},
+  {id:37,week:6,subject:'Anatomy',title:'Cranial nerve (1, 5, 7)'},
+  {id:38,week:6,subject:'Clinical',title:'Multiple sclerosis'},
+  {id:39,week:6,subject:'Psychiatry',title:'Depression and management'},
+  {id:40,week:7,subject:'Anatomy',title:'Anatomy of internal structure of brain'},
+  {id:41,week:7,subject:'Anatomy',title:'CN (9–12) & taste pathway'},
+  {id:42,week:7,subject:'Physiology',title:'Basal ganglia'},
+  {id:43,week:7,subject:'Clinical',title:'Gait'},
+  {id:44,week:7,subject:'Clinical',title:'Parkinsonism'},
+  {id:45,week:7,subject:'Pharmacology',title:'Anti-Parkinson drugs'},
+  {id:46,week:8,subject:'Anatomy',title:'Limbic system & thalamus'},
+  {id:47,week:8,subject:'Psychiatry',title:'Schizophrenia'},
+  {id:48,week:8,subject:'Pharmacology',title:'Anti-psychotic'},
+  {id:49,week:8,subject:'Physiology',title:'Neurotransmitters'},
+  {id:50,week:9,subject:'Anatomy',title:'Cervical fascia & post triangle of neck'},
+  {id:51,week:9,subject:'Physiology',title:'Synaptic transmission'},
+  {id:52,week:9,subject:'Histology',title:'Skeletal muscle & motor end plate'},
+  {id:53,week:9,subject:'Clinical',title:'Overuse injury & stress fracture'},
+  {id:54,week:9,subject:'Anatomy',title:'Larynx'},
+  {id:55,week:9,subject:'Anatomy',title:'Functional anatomy of foot'},
+  {id:56,week:10,subject:'Anatomy',title:'Blood supply & lymph of head & neck'},
+  {id:57,week:10,subject:'Pharmacology',title:'General anesthesia'},
+  {id:58,week:10,subject:'Physiology',title:'Sleep and consciousness'},
+  {id:59,week:10,subject:'Clinical',title:'Management of head injury'},
+];
+
+const practicals = [
+  {id:'p1',week:1,subject:'Anatomy',title:'Anatomy of skull'},
+  {id:'p2',week:2,subject:'Anatomy',title:'Anatomy of skull & C vertebrae'},
+  {id:'p3',week:2,subject:'Pharmacology',title:'Local anesthetic'},
+  {id:'p4',week:3,subject:'Anatomy',title:'Brainstem & cerebellum'},
+  {id:'p5',week:3,subject:'Physiology',title:'Visual acuity & color vision'},
+  {id:'p6',week:4,subject:'Anatomy',title:'Lobes & cortical areas'},
+  {id:'p7',week:4,subject:'Physiology',title:'Hearing'},
+  {id:'p8',week:5,subject:'Anatomy',title:'Mandible & parotid gland'},
+  {id:'p9',week:5,subject:'Pharmacology',title:'Drug acting on eye'},
+  {id:'p10',week:6,subject:'Anatomy',title:'Face and scalp'},
+  {id:'p11',week:6,subject:'Physiology',title:'Human reflexes'},
+  {id:'p12',week:7,subject:'Anatomy',title:'Sections of brain'},
+  {id:'p13',week:8,subject:'Anatomy',title:'Temporal & infratemporal fossae'},
+  {id:'p14',week:8,subject:'Histology',title:'Brainstem sections'},
+  {id:'p15',week:9,subject:'Anatomy',title:'Anterior triangle of knee'},
+  {id:'p16',week:9,subject:'Pharmacology',title:'Drug dilutions'},
+  {id:'p17',week:10,subject:'Anatomy',title:'Sagittal sections of H&N'},
+];
+
+function getState() { try { return JSON.parse(localStorage.getItem('medScheduleV2')||'{}'); } catch(e) { return {}; } }
+function setState(s) { try { localStorage.setItem('medScheduleV2', JSON.stringify(s)); } catch(e) {} }
+
+let state = getState();
+let activeFilter = 'all';
+
+function normalizeSubject(s) {
+  const map = { physio:'Physiology', physiology:'Physiology', pharma:'Pharmacology', pharmacology:'Pharmacology',
+    clincal:'Clinical', clinical:'Clinical', patho:'Pathology', pathology:'Pathology',
+    histology:'Histology', anatomy:'Anatomy', psychiatry:'Psychiatry', antomy:'Anatomy' };
+  return map[s.toLowerCase()] || s;
+}
+function getColor(s) { return subjectColors[normalizeSubject(s)] || 'var(--muted)'; }
+function getHex(s) { return subjectHex[normalizeSubject(s)] || '#555868'; }
+
+function toggle(id, type) {
+  const key = `${id}_${type}`;
+  state[key] = !state[key];
+  setState(state);
+  renderAll();
+  const emoji = { study:'✓', revision:'↻', mcq:'?' }[type] || '';
+  showToast(state[key] ? `${emoji} ${type} marked` : `${type} unmarked`);
+}
+
+let _toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  const m = document.getElementById('toast-msg');
+  m.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function filterSubject(subj, btn) {
+  activeFilter = subj;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function resetProgress() {
+  if(confirm('Reset all progress? This cannot be undone.')) {
+    localStorage.removeItem('medScheduleV2');
+    state = {};
+    renderAll();
+    showToast('Progress reset');
+  }
+}
+
+
+function cardHTML(lec) {
+  const norm = normalizeSubject(lec.subject);
+  const color = getColor(lec.subject);
+  const s = state[`${lec.id}_study`];
+  const r = state[`${lec.id}_revision`];
+  const m = state[`${lec.id}_mcq`];
+  return `
+    <div class="lecture-card ${s?'done':''}" style="--subject-color:${color}" data-subject="${norm}">
+      <div class="card-top">
+        <span class="subject-tag">${norm}</span>
+        <span class="card-num">#${String(lec.id).padStart(2,'0')}</span>
+      </div>
+      <div class="card-title">${lec.title}</div>
+      <div class="card-checks">
+        <button class="check-btn ${s?'checked-study':''}" onclick="toggle(${lec.id},'study')">✓ Study</button>
+        <button class="check-btn ${r?'checked-revision':''}" onclick="toggle(${lec.id},'revision')">↻ Rev</button>
+        <button class="check-btn ${m?'checked-mcq':''}" onclick="toggle(${lec.id},'mcq')">? MCQ</button>
+      </div>
+    </div>`;
+}
+
+function pracCardHTML(p) {
+  const norm = normalizeSubject(p.subject);
+  const color = getColor(p.subject);
+  const s = state[`${p.id}_study`];
+  const r = state[`${p.id}_revision`];
+  return `
+    <div class="practical-card" style="--subject-color:${color}" data-subject="${norm}">
+      <div class="prac-top">
+        <span class="prac-tag">${norm}</span>
+        <span class="prac-num">W${p.week}</span>
+      </div>
+      <div class="prac-title">${p.title}</div>
+      <div class="prac-checks">
+        <button class="check-btn ${s?'checked-study':''}" onclick="toggle('${p.id}','study')">✓ Study</button>
+        <button class="check-btn ${r?'checked-revision':''}" onclick="toggle('${p.id}','revision')">↻ Rev</button>
+      </div>
+    </div>`;
+}
+
+function renderAll() {
+  const allWeeks = [...new Set(lectures.map(l=>l.week))].sort((a,b)=>a-b);
+  const container = document.getElementById('weeks-container');
+  container.innerHTML = '';
+
+  allWeeks.forEach(wk => {
+    const wkAll = lectures.filter(l=>l.week===wk);
+    let filtered = activeFilter==='all' ? wkAll : wkAll.filter(l=>normalizeSubject(l.subject)===activeFilter);
+    if (filtered.length===0) return;
+
+    const studied = wkAll.filter(l=>state[`${l.id}_study`]).length;
+    const pct = wkAll.length ? Math.round(studied/wkAll.length*100) : 0;
+
+    const block = document.createElement('div');
+    block.className = 'week-block';
+    block.innerHTML = `
+      <div class="week-header">
+        <span class="week-badge">Week ${wk}</span>
+        <div class="week-line"></div>
+        <div class="week-mini-prog">
+          <div class="week-mini-track"><div class="week-mini-fill" style="width:${pct}%"></div></div>
+          <span class="week-count">${studied}/${wkAll.length}</span>
+        </div>
+      </div>
+      <div class="lecture-grid">${filtered.map(l=>cardHTML(l)).join('')}</div>`;
+    container.appendChild(block);
+  });
+
+  // Practicals
+  const pFiltered = activeFilter==='all' ? practicals : practicals.filter(p=>normalizeSubject(p.subject)===activeFilter);
+  const pracGrid = document.getElementById('prac-grid');
+  pracGrid.innerHTML = pFiltered.length ? pFiltered.map(p=>pracCardHTML(p)).join('') : '<div class="empty-state">No practicals for this filter</div>';
+
+  // Stats
+  const totalStudied = lectures.filter(l=>state[`${l.id}_study`]).length;
+  const totalRevised = lectures.filter(l=>state[`${l.id}_revision`]).length;
+  const totalMcq = lectures.filter(l=>state[`${l.id}_mcq`]).length;
+  const pct = Math.round(totalStudied/lectures.length*100);
+
+  document.getElementById('total-done').textContent = totalStudied;
+  document.getElementById('total-revised').textContent = totalRevised;
+  document.getElementById('total-mcq').textContent = totalMcq;
+  document.getElementById('pct').textContent = pct + '%';
+  document.getElementById('main-prog').style.width = pct + '%';
+  document.getElementById('prog-text').textContent = `${totalStudied} / ${lectures.length} studied`;
+
+  // Subject strip
+  const subjects = [...new Set(lectures.map(l=>normalizeSubject(l.subject)))].sort();
+  document.getElementById('subject-strip').innerHTML = subjects.map(s=>{
+    const total = lectures.filter(l=>normalizeSubject(l.subject)===s).length;
+    const done = lectures.filter(l=>normalizeSubject(l.subject)===s && state[`${l.id}_study`]).length;
+    const pctS = total ? Math.round(done/total*100) : 0;
+    const hex = getHex(s);
+    return `<div class="subj-chip">
+      <div class="subj-chip-dot" style="background:${hex}"></div>
+      <span>${s}</span>
+      <div class="subj-chip-bar"><div class="subj-chip-fill" style="width:${pctS}%;background:${hex}"></div></div>
+      <span class="subj-chip-frac">${done}/${total}</span>
+    </div>`;
+  }).join('');
+}
+
+renderAll();
+
+// ── Countdown to June 17, 2026 at 11:00 AM (local time) ──
+(function() {
+  const examDate = new Date(2026, 5, 17, 11, 0, 0); // month is 0-indexed
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function tick() {
+    const now = new Date();
+    const diff = examDate - now;
+
+    if (diff <= 0) {
+      document.getElementById('cd-units').innerHTML = '<span class="cd-expired">EXAM TIME — Good luck! 🎓</span>';
+      return;
+    }
+
+    const totalSecs = Math.floor(diff / 1000);
+    const days = Math.floor(totalSecs / 86400);
+    const hrs  = Math.floor((totalSecs % 86400) / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+
+    const urgent = days < 3;
+
+    const dEl = document.getElementById('cd-days');
+    const hEl = document.getElementById('cd-hrs');
+    const mEl = document.getElementById('cd-min');
+    const sEl = document.getElementById('cd-sec');
+
+    if (dEl) { dEl.textContent = pad(days); dEl.className = 'cd-num' + (urgent ? ' urgent' : ''); }
+    if (hEl) { hEl.textContent = pad(hrs);  hEl.className = 'cd-num' + (urgent ? ' urgent' : ''); }
+    if (mEl) { mEl.textContent = pad(mins); mEl.className = 'cd-num' + (urgent ? ' urgent' : ''); }
+    if (sEl) { sEl.textContent = pad(secs); sEl.className = 'cd-num' + (urgent ? ' urgent' : ''); }
+  }
+
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
